@@ -9,7 +9,9 @@
 3. POWERBANKS E BATERIAS SOBRESSALENTES (CABINE):
    - PROIBIDO o transporte em bagagem de porão (Checked Baggage).
    - BATERIAS SOBRESSALENTES NORMAIS (Câmaras, Drones, Portáteis, etc. — não powerbanks): Seguem integralmente os limites da Tabela 2.3.A da IATA: até 100 Wh (ou ≤ 2 g lítio metálico) são permitidas até um **máximo de 20 baterias sobressalentes por passageiro** na cabine (sem aprovação); entre 100 Wh e 160 Wh (ou > 2 g até 8 g em POC) são permitidas no máximo 2 baterias sobressalentes na cabine com aprovação prévia do operador.
-   - RESTRIÇÃO ESPECÍFICA SATA PARA POWERBANKS: Exclusivamente para **POWERBANKS**, a SATA limita o transporte a um **máximo de 2 powerbanks por passageiro** (contabilizados dentro do limite regulamentar IATA), exclusivamente na cabine (até 100 Wh sem aprovação; 100–160 Wh com aprovação prévia; proibidos > 160 Wh).
+   - RESTRIÇÃO ESPECÍFICA SATA PARA POWERBANKS: Exclusivamente para **POWERBANKS**, a SATA impõe duas restrições cumulativas:
+     a) **Limite máximo de potência de 100 Wh:** Powerbanks **acima de 100 Wh são PROIBIDOS na SATA** (não se aplica a exceção de 100–160 Wh aos powerbanks).
+     b) **Limite máximo de quantidade de 2 unidades:** Máximo de **2 powerbanks por passageiro** (até 100 Wh cada, sem aprovação, contabilizados dentro do teto total das 20 sobressalentes IATA), exclusivamente na cabine.
    - LOCALIZAÇÃO A BORDO (RECOMENDAÇÃO OPERACIONAL SATA): A SATA recomenda expressamente que os powerbanks sejam transportados **junto ao passageiro** (bolso do assento à frente, bagagem pessoal debaixo do assento ou junto ao corpo), **em vez de nos compartimentos superiores (overhead bins / racks)**.
 
 4. DESUMIDIFICADORES:
