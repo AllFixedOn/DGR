@@ -1,0 +1,29 @@
+1. VEÍCULOS E EQUIPAMENTOS ELÉTRICOS DE MOBILIDADE PESSOAL (LAZER / NÃO MÉDICOS):
+   - PROIBIDO o transporte (tanto em bagagem de porão como de mão) de equipamentos elétricos de mobilidade pessoal, tais como trotinetes elétricas, hoverboards, monociclos elétricos (solowheels), segways, bicicletas elétricas e similares.
+
+2. CADEIRAS DE RODAS E AUXILIARES DE MOBILIDADE MÉDICA (MOBILITY AIDS - BATERIAS DE LÍTIO):
+   - Permitidos apenas para passageiros com mobilidade reduzida, sujeitos a aprovação prévia do operador e às condições de isolamento/acondicionamento da Subsecção 2.3.2.4.
+   - RESTRIÇÃO ESPECÍFICA SATA (LIMITE DE POTÊNCIA EM BATERIAS FIXAS): Ao contrário da regra geral da IATA DGR (onde baterias de iões de lítio instaladas de forma fixa/não removível na cadeira de rodas não têm limite de Wh), na SATA o limite máximo é de **300 Wh MESMO PARA BATERIAS FIXAS / INSTALADAS**. Qualquer cadeira de rodas ou auxiliar de mobilidade com bateria fixa superior a 300 Wh é PROIBIDA na SATA.
+   - Baterias removíveis e sobressalentes seguem os limites regulamentares (máx. 1 bateria removida/sobressalente até 300 Wh, ou 2 baterias até 160 Wh cada, transportadas obrigatoriamente na cabine e protegidas contra curto-circuito).
+
+3. POWERBANKS E BATERIAS SOBRESSALENTES (CABINE):
+   - PROIBIDO o transporte em bagagem de porão (Checked Baggage).
+   - RESTRIÇÃO ESPECÍFICA SATA (QUANTIDADE E ACONDICIONAMENTO A BORDO): A SATA limita o transporte a um **máximo de 2 powerbanks por passageiro**, exclusivamente na cabine (sujeitos aos limites de potência IATA: até 100 Wh sem aprovação; entre 100 Wh e 160 Wh apenas com aprovação prévia do operador; proibidos acima de 160 Wh).
+   - LOCALIZAÇÃO A BORDO (RECOMENDAÇÃO OPERACIONAL SATA): A SATA recomenda expressamente que os powerbanks sejam transportados **junto ao passageiro** (no bolso do assento à frente, na bagagem pessoal debaixo do assento ou junto ao corpo), **em vez de serem colocados nos compartimentos superiores (overhead bins / racks)**, para permitir deteção e intervenção imediata da tripulação em caso de sobreaquecimento ou fuga térmica.
+
+4. DESUMIDIFICADORES:
+   - PROIBIDO o transporte em bagagem de porão e bagagem de mão.
+
+5. TINTEIROS E TONERS (Impressoras / Fotocopiadoras):
+   - PROIBIDO o transporte em bagagem de porão e bagagem de mão.
+
+6. LATAS DE TINTA E SPRAYS / AEROSSÓIS TÉCNICOS:
+   - PROIBIDO o transporte de latas de tinta e sprays (tintas em spray, sprays técnicos/inflamáveis/domésticos) em bagagem de porão e bagagem de mão. (Nota: artigos de higiene pessoal ou medicinais não inflamáveis e não tóxicos seguem os limites da Subsecção 2.3.5.1).
+
+7. CAMPING GAS, GASES INFLAMÁVEIS (DIV. 2.1) E RECIPIENTES DE COMBUSTÍVEL LÍQUIDO (CLASSE 3):
+   - PROIBIDO o transporte (em bagagem de porão e de mão) de camping gas, botijas/cartuchos de gás inflamável (Div. 2.1, ex: butano, propano) e fogões ou recipientes que contenham ou tenham contido combustível líquido inflamável, estejam CHEIOS ou VAZIOS.
+   - EXCEÇÃO IMPORTANTE (NÃO PROIBIDO): Esta proibição NÃO se aplica a gases não inflamáveis e não tóxicos (Divisão 2.2), tais como cartuchos/botijas de CO2 (dióxido de carbono), cilindros para membros mecânicos ou oxigénio gasoso medicinal, os quais SÃO PERMITIDOS de acordo com as condições e limites da Tabela 2.3.A e Subsecção 2.3 da IATA.
+
+8. MUNIÇÕES (Div. 1.4S, UN 0012 / UN 0014):
+   - Permitidas apenas em bagagem de porão dentro dos limites regulamentares (máx. 5 kg peso bruto por pessoa, aprovação do operador obrigatória).
+   - REGRA ESPECÍFICA SATA: Ao contrário da regra geral da Tabela 2.3.A da IATA (que indica NO para NOTOC), na SATA o Comandante (Pilot-in-Command) DEVE SER SEMPRE INFORMADO (YES) da localização das munições a bordo (NOTOC).
