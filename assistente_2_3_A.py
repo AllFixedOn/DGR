@@ -236,4 +236,180 @@ html_efb = f"""
 
   .card {{ background: #0F172A; border: 1px solid #1E293B; border-radius: 14px; padding: 14px; margin-bottom: 12px; }}
   .verdict {{ border-left: 5px solid #F59E0B; background: rgba(245, 158, 11, 0.1); }}
-  .verdict.PROIBIDO {{ border-left-color: #
+  .verdict.PROIBIDO {{ border-left-color: #EF4444; background: rgba(239, 68, 68, 0.12); }}
+  .verdict.PERMITIDO {{ border-left-color: #10B981; background: rgba(16, 185, 129, 0.12); }}
+  .v-title {{ font-size: 0.98rem; font-weight: 700; margin-bottom: 4px; }}
+  .v-ref {{ font-size: 0.76rem; color: #94A3B8; font-family: monospace; }}
+
+  .grid2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }}
+  .box {{ background: #0F172A; border: 1px solid #1E293B; border-radius: 12px; padding: 10px; text-align: center; }}
+  .box-lbl {{ font-size: 0.68rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }}
+  .box-val {{ font-size: 0.84rem; font-weight: 700; color: #38BDF8; font-family: monospace; }}
+
+  h4 {{ font-size: 0.82rem; color: #94A3B8; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.4px; }}
+  ul {{ padding-left: 16px; font-size: 0.85rem; line-height: 1.45; color: #E2E8F0; }}
+  li {{ margin-bottom: 6px; }}
+
+  label {{ display: block; font-size: 0.78rem; color: #94A3B8; margin-bottom: 4px; margin-top: 8px; }}
+  input, select {{ width: 100%; background: #060D1A; border: 1px solid #334155; color: white; padding: 10px; border-radius: 10px; font-size: 0.95rem; }}
+  .calc-res {{ margin-top: 12px; padding: 14px; border-radius: 12px; background: #1E293B; text-align: center; }}
+  .calc-num {{ font-size: 1.6rem; font-weight: 800; color: #10B981; font-family: monospace; }}
+  pre {{ white-space: pre-wrap; font-size: 0.8rem; color: #CBD5E1; line-height: 1.45; }}
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('ia', this)">🤖 Resultado IA</button>
+  <button class="tab-btn" onclick="showTab('calc', this)">🔋 Calc. Wh/g</button>
+  <button class="tab-btn" onclick="showTab('guia', this)">🚦 Guia SATA</button>
+  <button class="tab-btn" onclick="showTab('docs', this)">📋 Regras</button>
+</div>
+
+<div id="tab-ia" class="section active">
+  <div id="verdict-card" class="card verdict">
+    <div id="v-title" class="v-title"></div>
+    <div id="v-ref" class="v-ref"></div>
+  </div>
+  <div class="grid2">
+    <div class="box"><div class="box-lbl">Aprovação Operador</div><div id="b-aprov" class="box-val"></div></div>
+    <div class="box"><div class="box-lbl">Informar Cmdt (NOTOC)</div><div id="b-notoc" class="box-val"></div></div>
+    <div class="box"><div class="box-lbl">Bagagem de Porão</div><div id="b-porao" class="box-val"></div></div>
+    <div class="box"><div class="box-lbl">Bagagem de Mão</div><div id="b-mao" class="box-val"></div></div>
+  </div>
+  <div class="card">
+    <h4>📏 Limites & Patamares Exatos</h4>
+    <ul id="list-limites"></ul>
+  </div>
+  <div class="card">
+    <h4>📝 Condições Operacionais & SATA</h4>
+    <ul id="list-cond"></ul>
+  </div>
+</div>
+
+<div id="tab-calc" class="section">
+  <div class="card">
+    <h4>⚡ Calculadora Rápida de Baterias (IATA + SATA)</h4>
+    <label>Tipo de Aplicação:</label>
+    <select id="tipo-uso" onchange="calcularWh()">
+      <option value="ped">Eletrónico Portátil / Powerbank (Iões Lítio)</option>
+      <option value="wheelchair">Cadeira de Rodas Elétrica (Teto SATA 300 Wh Fixa)</option>
+      <option value="metal">Lítio Metálico (mAh → Gramas de Lítio)</option>
+    </select>
+    <label>Tensão Nominal (Volts - V):</label>
+    <input type="number" id="volts" value="14.8" step="0.1" oninput="calcularWh()">
+    <label>Capacidade (mAh):</label>
+    <input type="number" id="mah" value="10000" step="100" oninput="calcularWh()">
+    <div class="calc-res">
+      <div id="calc-num" class="calc-num">148.0 Wh</div>
+      <div id="calc-msg" style="font-size:0.82rem; margin-top:6px; color:#FBBF24;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-guia" class="section">
+  <div class="card" style="border-left:4px solid #EF4444;">
+    <h4>⛔ Proibidos na SATA (Porão & Cabine)</h4>
+    <ul>
+      <li>Trotinetes elétricas, hoverboards, segways, bicicletas elétricas.</li>
+      <li>Cadeiras de rodas com bateria fixa superior a <strong>300 Wh</strong>.</li>
+      <li>Desumidificadores, tinteiros e toners de impressão.</li>
+      <li>Latas de tinta e sprays técnicos/inflamáveis.</li>
+      <li>Camping gas, botijas gás inflamável (Div. 2.1) e recipientes combustível (cheios ou vazios).</li>
+    </ul>
+  </div>
+  <div class="card" style="border-left:4px solid #F59E0B;">
+    <h4>⚠️ Regras Específicas SATA</h4>
+    <ul>
+      <li><strong>Powerbanks / Sobressalentes:</strong> Proibidos no porão. Máx. <strong>2 unidades</strong> na cabine; recomendação SATA: transportar <strong>junto ao passageiro</strong> (evitar rack superior).</li>
+      <li><strong>Munições (1.4S):</strong> Máx. 5 kg porão + <strong>NOTOC obrigatório (YES)</strong>.</li>
+      <li><strong>Cartuchos CO2 (Div. 2.2):</strong> Permitidos dentro dos limites IATA (não inflamáveis).</li>
+    </ul>
+  </div>
+</div>
+
+<div id="tab-docs" class="section">
+  <div class="card">
+    <h4>📚 Manuais Carregados</h4>
+    <ul id="list-pdfs"></ul>
+  </div>
+  <div class="card">
+    <h4>📋 Regras SATA Ativas (regras_sata.txt)</h4>
+    <pre id="txt-regras"></pre>
+  </div>
+</div>
+
+<script>
+  const dados = {resp_json};
+  const regrasTxt = {regras_json};
+  const pdfsList = {pdfs_json};
+
+  function showTab(id, btn) {{
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.classList.add('active');
+  }}
+
+  const vCard = document.getElementById('verdict-card');
+  const cor = (dados.status_cor || '').toUpperCase();
+  if (cor.includes('PROIBIDO')) vCard.classList.add('PROIBIDO');
+  else if (cor.includes('PERMITIDO')) vCard.classList.add('PERMITIDO');
+
+  document.getElementById('v-title').textContent = (cor.includes('PROIBIDO') ? '⛔ ' : cor.includes('PERMITIDO') ? '✅ ' : '⚠️ ') + dados.titulo_veredicto;
+  document.getElementById('v-ref').textContent = 'REF: ' + dados.referencia_iata;
+  document.getElementById('b-aprov').textContent = dados.aprovacao_operador;
+  document.getElementById('b-notoc').textContent = dados.notoc;
+  document.getElementById('b-porao').textContent = dados.bagagem_porao;
+  document.getElementById('b-mao').textContent = dados.bagagem_mao;
+
+  const ulLim = document.getElementById('list-limites');
+  (dados.limites_exatos || []).forEach(l => {{
+    const li = document.createElement('li'); li.textContent = l; ulLim.appendChild(li);
+  }});
+  const ulCond = document.getElementById('list-cond');
+  (dados.condicoes_operacionais || []).forEach(c => {{
+    const li = document.createElement('li'); li.textContent = c; ulCond.appendChild(li);
+  }});
+
+  const ulPdfs = document.getElementById('list-pdfs');
+  pdfsList.forEach(p => {{
+    const li = document.createElement('li'); li.textContent = p; ulPdfs.appendChild(li);
+  }});
+  document.getElementById('txt-regras').textContent = regrasTxt;
+
+  function calcularWh() {{
+    const tipo = document.getElementById('tipo-uso').value;
+    const v = parseFloat(document.getElementById('volts').value) || 0;
+    const mah = parseFloat(document.getElementById('mah').value) || 0;
+    const numEl = document.getElementById('calc-num');
+    const msgEl = document.getElementById('calc-msg');
+
+    if (tipo === 'metal') {{
+      const gramas = (mah / 1000) * 0.3;
+      numEl.textContent = gramas.toFixed(2) + ' g Lítio';
+      if (gramas <= 2) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 2 g: Permitido SEM aprovação (Solta: só cabine, máx. 2).'; }}
+      else if (gramas <= 8) {{ numEl.style.color = '#F59E0B'; msgEl.textContent = '⚠️ > 2 g até 8 g (POC/Médico): Requer APROVAÇÃO do operador (YES).'; }}
+      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 8 g: PROIBIDO em bagagem de passageiro.'; }}
+      return;
+    }}
+
+    const wh = (v * mah) / 1000;
+    numEl.textContent = wh.toFixed(1) + ' Wh';
+
+    if (tipo === 'wheelchair') {{
+      if (wh <= 300) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 300 Wh: Aceite na SATA (sujeito a aprovação e proteção de terminais).'; }}
+      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 300 Wh: PROIBIDO NA SATA (teto máximo de 300 Wh mesmo para baterias fixas).'; }}
+    }} else {{
+      if (wh <= 100) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 100 Wh: Instalada em PED (Porão/Cabine) | Solta/Powerbank: SÓ CABINE (máx. 2 junto ao passageiro).'; }}
+      else if (wh <= 160) {{ numEl.style.color = '#F59E0B'; msgEl.textContent = '⚠️ 100–160 Wh: Requer APROVAÇÃO SATA (YES). Solta/Powerbank: SÓ CABINE (máx. 2).'; }}
+      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 160 Wh: PROIBIDO como powerbank / eletrónico portátil.'; }}
+    }}
+  }}
+  calcularWh();
+</script>
+</body>
+</html>
+"""
+
+components.html(html_efb, height=780, scrolling=True)
