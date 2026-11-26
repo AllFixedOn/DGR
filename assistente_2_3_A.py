@@ -232,19 +232,32 @@ with tab_consulta:
             {regras_sata_base}
             """ if aplicar_sata else "Aplica apenas a regra geral IATA DGR."
 
-            prompt_json = f"""
+           prompt_json = f"""
             És um Instrutor Certificado de IATA DGR (67ª Edição) na SATA.
-            Analisa a pergunta com base na documentação fornecida e devolve EXCLUSIVAMENTE um objeto JSON válido com estas chaves exatas:
+            Analisa a pergunta com base em TODOS os documentos da Secção 2 e nas Regras Específicas da SATA fornecidos abaixo.
+
+            REGRAS CRÍTICAS DE RIGOR REGULAMENTAR (NUNCA VIOLAR):
+            1. ESCALÕES E PATAMARES DE APROVAÇÃO: Muitos artigos na Tabela 2.3.A e Subsecção 2.3 têm DOIS patamares distintos (ex.: Lítio Metálico <= 2 g SEM aprovação vs > 2 g até 8 g COM aprovação; ou Iões de Lítio <= 100 Wh SEM aprovação vs > 100 Wh até 160 Wh COM aprovação). É OBRIGATÓRIO discriminar TODOS os patamares existentes, indicando exatamente qual o intervalo que NÃO requer aprovação (NO) e qual o intervalo que REQUER aprovação do operador (YES).
+            2. QUANTIDADES MÁXIMAS: Indica sempre tanto a capacidade/peso por bateria (g ou Wh) como o número máximo de baterias sobressalentes permitidas por passageiro.
+            3. Se a aprovação do operador depender do patamar (ex.: NO até 2g, YES acima de 2g até 8g), preenche "aprovacao_operador" com o resumo exato dos dois patamares (ex.: "NO (<=2g) | YES (>2g-8g)").
+
+            Devolve EXCLUSIVAMENTE um objeto JSON válido com estas chaves exatas:
             {{
               "status_cor": "PROIBIDO" ou "CONDICIONADO" ou "PERMITIDO",
-              "titulo_veredicto": "Frase curta e direta do veredicto na SATA (ex: PROIBIDO NA SATA - Excede 300 Wh)",
-              "referencia_iata": "Subsecção/Tabela exata (ex: Tabela 2.3.A / 2.3.2.4)",
-              "aprovacao_operador": "YES" ou "NO" ou "N/A",
-              "bagagem_porao": "YES" ou "NO",
-              "bagagem_mao": "YES" ou "NO" ou "ON PERSON",
-              "notoc": "YES" ou "NO",
-              "limites_exatos": ["Lista de strings com TODOS os limites numéricos: Wh, mL, L, g, kg, máx. unidades"],
-              "condicoes_operacionais": ["Lista de strings com as condições práticas de check-in/embarque e variações SATA"]
+              "titulo_veredicto": "Frase curta e direta do veredicto na SATA",
+              "referencia_iata": "Subsecção/Tabela exata (ex: Tabela 2.3.A / 2.3.3.2)",
+              "aprovacao_operador": "YES / NO ou resumo dos escalões (ex: NO <=2g | YES >2g-8g)",
+              "bagagem_porao": "YES ou NO (com nota se aplicável)",
+              "bagagem_mao": "YES ou NO ou ON PERSON",
+              "notoc": "YES ou NO",
+              "limites_exatos": [
+                "Patamar 1 (Sem aprovação): ...",
+                "Patamar 2 (Com aprovação do operador): ...",
+                "Quantidade máxima de sobressalentes: ..."
+              ],
+              "condicoes_operacionais": [
+                "Condições práticas de transporte, proteção contra curto-circuito e regras SATA"
+              ]
             }}
 
             {bloco_sata}
