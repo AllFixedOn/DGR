@@ -1,0 +1,9 @@
+Ini, TOML
+[theme]
+primaryColor = "#00A859"
+backgroundColor = "#F4F7FA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#0F2942"
+font = "sans serif"
+baseRadius = "0.75rem"
+showWidgetBorder = true
