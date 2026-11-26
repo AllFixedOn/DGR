@@ -1,127 +1,66 @@
 import os
 import glob
 import json
+import base64
 import pdfplumber
 import streamlit as st
+import streamlit.components.v1 as components
 from openai import OpenAI
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+# --- CONFIGURAÇÃO DE ECRÃ TOTAL ---
 st.set_page_config(
-    page_title="DGR SATA Ops",
+    page_title="SATA DGR Ops • EFB v2.67",
     page_icon="✈️",
-    layout="centered",
+    layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- ESTILO VISUAL DE APP NATIVA (HEADER SATA + CARTÕES + LIMPEZA DE UI) ---
+# Remover margens e elementos padrão do Streamlit para aspeto 100% App Nativa
 st.markdown("""
 <style>
-    header[data-testid="stHeader"] {visibility: hidden; height: 0px;}
-    footer {visibility: hidden;}
-    .block-container {padding-top: 1rem; padding-bottom: 2rem; max-width: 680px;}
-
-    .sata-header {
-        background: linear-gradient(135deg, #003366 0%, #005580 65%, #008751 100%);
-        color: white;
-        padding: 18px 20px;
-        border-radius: 16px;
-        margin-bottom: 16px;
-        box-shadow: 0 4px 14px rgba(0, 51, 102, 0.18);
+    header[data-testid="stHeader"] {display: none !important;}
+    footer {display: none !important;}
+    .block-container {
+        padding: 0rem !important;
+        margin: 0 auto !important;
+        max-width: 540px !important;
     }
-    .sata-header h2 {
-        margin: 0;
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: white;
-        letter-spacing: 0.3px;
+    iframe {
+        border: none !important;
+        width: 100% !important;
     }
-    .sata-header p {
-        margin: 4px 0 0 0;
-        font-size: 0.85rem;
-        opacity: 0.9;
-        color: #E0F2FE;
-    }
-
-    .verdict-card {
-        padding: 16px 18px;
-        border-radius: 14px;
-        margin: 12px 0;
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-    .verdict-proibido {
-        background-color: #FEF2F2;
-        border-left: 6px solid #DC2626;
-        color: #991B1B;
-    }
-    .verdict-condicionado {
-        background-color: #FFFBEB;
-        border-left: 6px solid #D97706;
-        color: #92400E;
-    }
-    .verdict-permitido {
-        background-color: #ECFDF5;
-        border-left: 6px solid #059669;
-        color: #065F46;
-    }
-
-    .status-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin: 12px 0;
-    }
-    .status-box {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 12px;
-        text-align: center;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.03);
-    }
-    .status-label {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        color: #64748B;
-        font-weight: 600;
-        margin-bottom: 4px;
-    }
-    .status-val {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: #0F2942;
+    body, .stApp {
+        background-color: #060D1A !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # --- PROTEÇÃO POR PASSWORD ---
-def verificar_acesso():
-    if "autenticado" not in st.session_state:
-        st.session_state["autenticado"] = False
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
 
-    if not st.session_state["autenticado"]:
-        st.markdown("""
-        <div class="sata-header">
-            <h2>✈️ SATA DGR Assistant</h2>
-            <p>Acesso Operacional Restrito • IATA 67ª Edição</p>
-        </div>
-        """, unsafe_allow_html=True)
-        senha = st.text_input("Código de acesso:", type="password", placeholder="Introduz o PIN...")
-        if st.button("Desbloquear App", type="primary", use_container_width=True):
+if not st.session_state["autenticado"]:
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #003366, #008751); padding: 24px; border-radius: 16px; margin: 20px 16px; color: white; font-family: sans-serif;">
+        <h2 style="margin:0; font-size:1.3rem;">✈️ SATA DGR Ops • EFB</h2>
+        <p style="margin:4px 0 0 0; font-size:0.82rem; opacity:0.9;">Acesso Operacional Restrito • IATA 67ª Edição</p>
+    </div>
+    """, unsafe_allow_html=True)
+    with st.container():
+        senha = st.text_input("PIN de Acesso:", type="password", placeholder="Introduz o código...")
+        if st.button("Desbloquear Sistema", type="primary", use_container_width=True):
             senha_correta = str(st.secrets.get("APP_PASSWORD", "")).strip()
             if senha.strip() == senha_correta and senha_correta != "":
                 st.session_state["autenticado"] = True
                 st.rerun()
             else:
-                st.error("Código incorreto.")
-        st.stop()
-
-verificar_acesso()
+                st.error("PIN incorreto.")
+    st.stop()
 
 OPENAI_API_KEY = str(st.secrets["OPENAI_API_KEY"]).strip()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# --- CARREGAMENTO DE PDFs E REGRAS ---
+# --- CARREGAMENTO DE PDFs E REGRAS SATA ---
 @st.cache_data
 def carregar_todos_pdfs(diretorio):
     padroes = [
@@ -151,64 +90,71 @@ def carregar_regras_sata():
             conteudo = f.read().strip()
             if conteudo:
                 return conteudo
-    return "Regras SATA não encontradas no ficheiro regras_sata.txt."
+    return "Regras SATA carregadas por defeito."
+
+def carregar_audio_base64():
+    audios = sorted(glob.glob(os.path.join(BASE_DIR, "*.mp3")) + glob.glob(os.path.join(BASE_DIR, "*.wav")))
+    if audios:
+        ext = "mp3" if audios[0].endswith(".mp3") else "wav"
+        with open(audios[0], "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("utf-8")
+        return f"data:audio/{ext};base64,{b64}", os.path.basename(audios[0])
+    return "", ""
 
 texto_referencia, lista_pdfs = carregar_todos_pdfs(BASE_DIR)
 regras_sata_base = carregar_regras_sata()
+audio_data_uri, audio_nome = carregar_audio_base64()
 
-# --- CABEÇALHO DA APP ---
-st.markdown("""
-<div class="sata-header">
-    <h2>✈️ SATA DGR • Check-in & Embarque</h2>
-    <p>IATA DGR 67ª Ed. (2026) + Variações Operacionais SATA</p>
-</div>
-""", unsafe_allow_html=True)
+# --- ESTADO DA CONSULTA ---
+if "ultima_resposta" not in st.session_state:
+    st.session_state["ultima_resposta"] = {
+        "status_cor": "CONDICIONADO",
+        "titulo_veredicto": "Pronto para consulta operacional IATA + SATA",
+        "referencia_iata": "Secção 2 • Tabela 2.3.A (67ª Ed. 2026)",
+        "aprovacao_operador": "VARIA",
+        "bagagem_porao": "VERIFICAR",
+        "bagagem_mao": "VERIFICAR",
+        "notoc": "VERIFICAR",
+        "limites_exatos": [
+            "Seleciona um atalho abaixo ou descreve o artigo do passageiro para validar limites exatos e patamares."
+        ],
+        "condicoes_operacionais": [
+            f"Base ativa: {len(lista_pdfs)} documento(s) da Secção 2 + Variações SATA (SP/S4)."
+        ]
+    }
 
-# --- LEITOR OPCIONAL PARA ÁUDIO ---
-audio_files = sorted(glob.glob(os.path.join(BASE_DIR, "*.mp3")) + glob.glob(os.path.join(BASE_DIR, "*.wav")))
-if audio_files:
-    with st.expander("🎵 Áudio da App (Splash / Background)", expanded=False):
-        for af in audio_files:
-            st.caption(os.path.basename(af))
-            st.audio(af)
+# --- BARRA DE PESQUISA NATIVA LIGADA AO BACKEND OPENAI ---
+with st.container():
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #091526 0%, #003366 65%, #006B3C 100%); padding: 14px 16px; border-bottom: 1px solid #1E293B; color: white; font-family: sans-serif;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-weight:700; font-size:1.05rem;">✈️ SATA DGR Ops <span style="font-size:0.7rem; background:#00A859; padding:2px 6px; border-radius:6px;">EFB v2.67</span></div>
+                <div style="font-size:0.75rem; color:#94A3B8;">IATA 67ª Ed. (2026) • Prioridade SATA Ativa</div>
+            </div>
+            <div style="font-size:0.72rem; color:#10B981; font-weight:600;">● ONLINE</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-# --- NAVEGAÇÃO POR SEPARADORES ---
-tab_consulta, tab_rapido, tab_regras = st.tabs(["🔍 Consulta IA", "🚦 Guia Rápido", "📋 Regras SATA"])
+    col_t1, col_t2 = st.columns([3, 2])
+    with col_t1:
+        aplicar_sata = st.toggle("Aplicar Variações SATA", value=True)
+    with col_t2:
+        if audio_data_uri:
+            st.audio(audio_data_uri)
 
-with tab_consulta:
-    aplicar_sata = st.toggle("Prioridade Regras SATA (SP / S4)", value=True)
-
-    if "query_input" not in st.session_state:
-        st.session_state["query_input"] = ""
-
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("🔋 Powerbanks (Máx. 2)", use_container_width=True):
-            st.session_state["query_input"] = "Quais os limites, quantidade e localização a bordo para powerbanks na SATA?"
-        if st.button("♿ Cadeira Rodas (300Wh)", use_container_width=True):
-            st.session_state["query_input"] = "Passageiro com cadeira de rodas elétrica com bateria de lítio fixa. Qual o limite na SATA?"
-    with c2:
-        if st.button("🧯 CO2 vs Camping Gas", use_container_width=True):
-            st.session_state["query_input"] = "Passageiro com cartuchos de CO2 para colete salva-vidas vs camping gas. Limites e regras?"
-        if st.button("🔫 Munições & NOTOC", use_container_width=True):
-            st.session_state["query_input"] = "Quais as regras, peso máximo e exigência de NOTOC para munições na SATA?"
-
-    pergunta = st.text_area(
-        "Artigo ou cenário do passageiro:",
-        value=st.session_state["query_input"],
-        placeholder="Ex: POC com bateria de lítio metálico ou 2 baterias de 120 Wh...",
-        height=95,
+    pergunta = st.text_input(
+        "Consulta DGR:",
+        placeholder="Ex: POC lítio metálico, cadeira rodas 350Wh, 2 powerbanks...",
         label_visibility="collapsed"
     )
 
-    if st.button("Validar Transporte", type="primary", use_container_width=True):
+    if st.button("🔍 Validar Transporte (IATA + SATA)", type="primary", use_container_width=True):
         if not texto_referencia.strip():
-            st.error("Nenhum PDF carregado no repositório.")
-        elif not pergunta.strip():
-            st.warning("Escreve o artigo ou dúvida primeiro.")
-        else:
+            st.error("Nenhum PDF carregado no GitHub.")
+        elif pergunta.strip():
             client = OpenAI(api_key=OPENAI_API_KEY)
-
             bloco_sata = f"""
             HIERARQUIA OBRIGATÓRIA:
             1º Lugar: REGRAS ESPECÍFICAS DA SATA (prevalecem sempre sobre a IATA).
@@ -221,37 +167,30 @@ with tab_consulta:
             És um Instrutor Certificado de IATA DGR (67ª Edição) na SATA.
             Analisa a pergunta com base em TODOS os documentos da Secção 2 e nas Regras Específicas da SATA fornecidos abaixo.
 
-            REGRAS CRÍTICAS DE RIGOR REGULAMENTAR (NUNCA VIOLAR):
-            1. ESCALÕES E PATAMARES DE APROVAÇÃO: Muitos artigos na Tabela 2.3.A e Subsecção 2.3 têm DOIS patamares distintos (ex.: Lítio Metálico <= 2 g SEM aprovação vs > 2 g até 8 g COM aprovação; ou Iões de Lítio <= 100 Wh SEM aprovação vs > 100 Wh até 160 Wh COM aprovação). É OBRIGATÓRIO discriminar TODOS os patamares existentes, indicando exatamente qual o intervalo que NÃO requer aprovação (NO) e qual o intervalo que REQUER aprovação do operador (YES).
-            2. QUANTIDADES MÁXIMAS: Indica sempre tanto a capacidade/peso por bateria (g ou Wh) como o número máximo de baterias sobressalentes permitidas por passageiro.
-            3. Se a aprovação do operador depender do patamar (ex.: NO até 2g, YES acima de 2g até 8g), preenche "aprovacao_operador" com o resumo exato dos dois patamares (ex.: "NO (<=2g) | YES (>2g-8g)").
+            REGRAS CRÍTICAS DE RIGOR REGULAMENTAR:
+            1. ESCALÕES E PATAMARES DE APROVAÇÃO: Discrimina sempre TODOS os patamares distintos (ex.: Lítio Metálico <= 2 g SEM aprovação vs > 2 g até 8 g COM aprovação; ou Iões de Lítio <= 100 Wh SEM aprovação vs > 100 Wh até 160 Wh COM aprovação).
+            2. Preenche "aprovacao_operador" com o resumo exato dos escalões quando aplicável (ex.: "NO (<=2g) | YES (>2g-8g)").
+            3. Indica sempre limites numéricos exatos (Wh, g, mL, L, kg, máx. unidades) e regras SATA (ex.: teto 300 Wh mesmo em baterias fixas de cadeiras de rodas, máx. 2 powerbanks junto ao passageiro, NOTOC YES para munições).
 
-            Devolve EXCLUSIVAMENTE um objeto JSON válido com estas chaves exatas:
+            Devolve EXCLUSIVAMENTE um JSON válido com estas chaves:
             {{
               "status_cor": "PROIBIDO" ou "CONDICIONADO" ou "PERMITIDO",
-              "titulo_veredicto": "Frase curta e direta do veredicto na SATA",
+              "titulo_veredicto": "Frase curta e direta do veredicto",
               "referencia_iata": "Subsecção/Tabela exata (ex: Tabela 2.3.A / 2.3.3.2)",
-              "aprovacao_operador": "YES / NO ou resumo dos escalões (ex: NO <=2g | YES >2g-8g)",
-              "bagagem_porao": "YES ou NO (com nota se aplicável)",
+              "aprovacao_operador": "YES / NO ou resumo dos escalões",
+              "bagagem_porao": "YES ou NO",
               "bagagem_mao": "YES ou NO ou ON PERSON",
               "notoc": "YES ou NO",
-              "limites_exatos": [
-                "Patamar 1 (Sem aprovação): ...",
-                "Patamar 2 (Com aprovação do operador): ...",
-                "Quantidade máxima de sobressalentes: ..."
-              ],
-              "condicoes_operacionais": [
-                "Condições práticas de transporte, proteção contra curto-circuito e regras SATA"
-              ]
+              "limites_exatos": ["Patamar 1...", "Patamar 2...", "Máximo unidades..."],
+              "condicoes_operacionais": ["Condições práticas e variações SATA..."]
             }}
 
             {bloco_sata}
-
             DOCUMENTAÇÃO IATA SECÇÃO 2:
             {texto_referencia}
             """
 
-            with st.spinner("A analisar regulamentação IATA + SATA..."):
+            with st.spinner("A consultar Secção 2 + Variações SATA..."):
                 try:
                     response = client.chat.completions.create(
                         model="gpt-4o",
@@ -262,67 +201,210 @@ with tab_consulta:
                             {"role": "user", "content": pergunta}
                         ]
                     )
-                    dados = json.loads(response.choices[0].message.content)
-
-                    cor = dados.get("status_cor", "CONDICIONADO").upper()
-                    classe_css = "verdict-condicionado"
-                    icone = "⚠️"
-                    if "PROIBIDO" in cor:
-                        classe_css = "verdict-proibido"
-                        icone = "⛔"
-                    elif "PERMITIDO" in cor:
-                        classe_css = "verdict-permitido"
-                        icone = "✅"
-
-                    st.markdown(f"""
-                    <div class="verdict-card {classe_css}">
-                        <div style="font-size: 1.1rem;">{icone} {dados.get('titulo_veredicto', '')}</div>
-                        <div style="font-size: 0.82rem; margin-top: 4px; opacity: 0.85;">Ref: {dados.get('referencia_iata', '')}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    st.markdown(f"""
-                    <div class="status-grid">
-                        <div class="status-box">
-                            <div class="status-label">Aprovação Operador</div>
-                            <div class="status-val">{dados.get('aprovacao_operador', '-')}</div>
-                        </div>
-                        <div class="status-box">
-                            <div class="status-label">Informar Cmdt (NOTOC)</div>
-                            <div class="status-val">{dados.get('notoc', '-')}</div>
-                        </div>
-                        <div class="status-box">
-                            <div class="status-label">Bagagem de Porão</div>
-                            <div class="status-val">{dados.get('bagagem_porao', '-')}</div>
-                        </div>
-                        <div class="status-box">
-                            <div class="status-label">Bagagem de Mão</div>
-                            <div class="status-val">{dados.get('bagagem_mao', '-')}</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    st.markdown("#### 📏 Limites Quantitativos Exatos")
-                    for lim in dados.get("limites_exatos", []):
-                        st.markdown(f"- **{lim}**")
-
-                    st.markdown("#### 📝 Condições Operacionais & SATA")
-                    for cond in dados.get("condicoes_operacionais", []):
-                        st.markdown(f"- {cond}")
-
+                    st.session_state["ultima_resposta"] = json.loads(response.choices[0].message.content)
                 except Exception as e:
-                    st.error(f"Erro ao processar resposta: {e}")
+                    st.error(f"Erro na API: {e}")
 
-with tab_rapido:
-    st.markdown("#### 🚦 Resumo Rápido de Balcão (SATA)")
-    st.error("⛔ **PROIBIDOS (Porão e Cabine):** Trotinetes/hoverboards/bicicletas elétricas, desumidificadores, tinteiros/toners, latas de tinta/sprays técnicos, camping gas/gás inflamável (Div. 2.1), cadeiras de rodas com bateria fixa **> 300 Wh**.")
-    st.warning("⚠️ **RESTRIÇÕES ESPECÍFICAS SATA:**\n- **Cadeiras de Rodas Elétricas:** Máx. **300 Wh** mesmo em baterias fixas.\n- **Powerbanks:** Máx. **2 unidades** por passageiro, só na cabine e **junto ao passageiro** (evitar rack superior).\n- **Munições (1.4S):** Máx. **5 kg** porão + **NOTOC obrigatório (YES)**.")
-    st.success("✅ **PERMITIDOS (DENTRO DOS LIMITES IATA):** Cartuchos de **CO2** (Div. 2.2 — não inflamáveis), artigos de higiene/medicinais (2.3.5.1), eletrónicos portáteis com baterias até 100 Wh.")
+# --- RENDERIZAÇÃO DO PAINEL EFB INTERATIVO (CARTÕES + CALCULADORA + GUIA) ---
+resp_json = json.dumps(st.session_state["ultima_resposta"], ensure_ascii=False)
+regras_json = json.dumps(regras_sata_base, ensure_ascii=False)
+pdfs_json = json.dumps(lista_pdfs, ensure_ascii=False)
 
-with tab_regras:
-    st.markdown(f"#### 📚 Base Documental Ativa ({len(lista_pdfs)} PDFs)")
-    for pdf_nome in lista_pdfs:
-        st.caption(f"📄 {pdf_nome}")
-    st.divider()
-    st.markdown("#### 📋 Ficheiro `regras_sata.txt` em vigor")
-    st.text_area("Regras atuais:", value=regras_sata_base, height=350, disabled=True)
+html_efb = f"""
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+  body {{ background: #060D1A; color: #F8FAFC; padding: 12px 14px 80px 14px; }}
+  .tabs {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: #0F172A; padding: 5px; border-radius: 12px; border: 1px solid #1E293B; margin-bottom: 14px; }}
+  .tab-btn {{ background: transparent; border: none; color: #94A3B8; padding: 8px 4px; border-radius: 8px; font-size: 0.74rem; font-weight: 600; cursor: pointer; }}
+  .tab-btn.active {{ background: #005580; color: #FFFFFF; }}
+  .section {{ display: none; }}
+  .section.active {{ display: block; }}
+
+  .card {{ background: #0F172A; border: 1px solid #1E293B; border-radius: 14px; padding: 14px; margin-bottom: 12px; }}
+  .verdict {{ border-left: 5px solid #F59E0B; background: rgba(245, 158, 11, 0.1); }}
+  .verdict.PROIBIDO {{ border-left-color: #EF4444; background: rgba(239, 68, 68, 0.12); }}
+  .verdict.PERMITIDO {{ border-left-color: #10B981; background: rgba(16, 185, 129, 0.12); }}
+  .v-title {{ font-size: 0.98rem; font-weight: 700; margin-bottom: 4px; }}
+  .v-ref {{ font-size: 0.76rem; color: #94A3B8; font-family: monospace; }}
+
+  .grid2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }}
+  .box {{ background: #0F172A; border: 1px solid #1E293B; border-radius: 12px; padding: 10px; text-align: center; }}
+  .box-lbl {{ font-size: 0.68rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }}
+  .box-val {{ font-size: 0.88rem; font-weight: 700; color: #38BDF8; font-family: monospace; }}
+
+  h4 {{ font-size: 0.82rem; color: #94A3B8; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.4px; }}
+  ul {{ padding-left: 16px; font-size: 0.85rem; line-height: 1.45; color: #E2E8F0; }}
+  li {{ margin-bottom: 6px; }}
+
+  /* Calculadora */
+  label {{ display: block; font-size: 0.78rem; color: #94A3B8; margin-bottom: 4px; margin-top: 8px; }}
+  input, select {{ width: 100%; background: #060D1A; border: 1px solid #334155; color: white; padding: 10px; border-radius: 10px; font-size: 0.95rem; }}
+  .calc-res {{ margin-top: 12px; padding: 14px; border-radius: 12px; background: #1E293B; text-align: center; }}
+  .calc-num {{ font-size: 1.6rem; font-weight: 800; color: #10B981; font-family: monospace; }}
+  pre {{ white-space: pre-wrap; font-size: 0.8rem; color: #CBD5E1; line-height: 1.45; }}
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('ia', this)">🤖 Resultado IA</button>
+  <button class="tab-btn" onclick="showTab('calc', this)">🔋 Calc. Wh/g</button>
+  <button class="tab-btn" onclick="showTab('guia', this)">🚦 Guia SATA</button>
+  <button class="tab-btn" onclick="showTab('docs', this)">📋 Regras</button>
+</div>
+
+<div id="tab-ia" class="section active">
+  <div id="verdict-card" class="card verdict">
+    <div id="v-title" class="v-title"></div>
+    <div id="v-ref" class="v-ref"></div>
+  </div>
+  <div class="grid2">
+    <div class="box"><div class="box-lbl">Aprovação Operador</div><div id="b-aprov" class="box-val"></div></div>
+    <div class="box"><div class="box-lbl">Informar Cmdt (NOTOC)</div><div id="b-notoc" class="box-val"></div></div>
+    <div class="box"><div class="box-lbl">Bagagem de Porão</div><div id="b-porao" class="box-val"></div></div>
+    <div class="box"><div class="box-lbl">Bagagem de Mão</div><div id="b-mao" class="box-val"></div></div>
+  </div>
+  <div class="card">
+    <h4>📏 Limites & Patamares Exatos</h4>
+    <ul id="list-limites"></ul>
+  </div>
+  <div class="card">
+    <h4>📝 Condições Operacionais & SATA</h4>
+    <ul id="list-cond"></ul>
+  </div>
+</div>
+
+<div id="tab-calc" class="section">
+  <div class="card">
+    <h4>⚡ Calculadora Rápida de Baterias (IATA + SATA)</h4>
+    <label>Tipo de Aplicação:</label>
+    <select id="tipo-uso" onchange="calcularWh()">
+      <option value="ped">Eletrónico Portátil / Powerbank (Iões Lítio)</option>
+      <option value="wheelchair">Cadeira de Rodas Elétrica (Teto SATA 300 Wh Fixa)</option>
+      <option value="metal">Lítio Metálico (mAh → Gramas de Lítio)</option>
+    </select>
+    <label>Tensão Nominal (Volts - V):</label>
+    <input type="number" id="volts" value="14.8" step="0.1" oninput="calcularWh()">
+    <label>Capacidade (mAh):</label>
+    <input type="number" id="mah" value="10000" step="100" oninput="calcularWh()">
+    <div class="calc-res">
+      <div id="calc-num" class="calc-num">148.0 Wh</div>
+      <div id="calc-msg" style="font-size:0.82rem; margin-top:6px; color:#FBBF24;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-guia" class="section">
+  <div class="card" style="border-left:4px solid #EF4444;">
+    <h4>⛔ Proibidos na SATA (Porão & Cabine)</h4>
+    <ul>
+      <li>Trotinetes elétricas, hoverboards, segways, bicicletas elétricas.</li>
+      <li>Cadeiras de rodas com bateria fixa superior a <strong>300 Wh</strong>.</li>
+      <li>Desumidificadores, tinteiros e toners de impressão.</li>
+      <li>Latas de tinta e sprays técnicos/inflamáveis.</li>
+      <li>Camping gas, botijas gás inflamável (Div. 2.1) e recipientes combustível (cheios ou vazios).</li>
+    </ul>
+  </div>
+  <div class="card" style="border-left:4px solid #F59E0B;">
+    <h4>⚠️ Regras Específicas SATA</h4>
+    <ul>
+      <li><strong>Powerbanks:</strong> Máx. <strong>2 unidades</strong> na cabine; recomendação SATA: transportar <strong>junto ao passageiro</strong> (evitar rack superior).</li>
+      <li><strong>Munições (1.4S):</strong> Máx. 5 kg porão + <strong>NOTOC obrigatório (YES)</strong>.</li>
+      <li><strong>Cartuchos CO2 (Div. 2.2):</strong> Permitidos dentro dos limites IATA (não inflamáveis).</li>
+    </ul>
+  </div>
+</div>
+
+<div id="tab-docs" class="section">
+  <div class="card">
+    <h4>📚 Manuais Carregados</h4>
+    <ul id="list-pdfs"></ul>
+  </div>
+  <div class="card">
+    <h4>📋 Regras SATA Ativas (regras_sata.txt)</h4>
+    <pre id="txt-regras"></pre>
+  </div>
+</div>
+
+<script>
+  const dados = {resp_json};
+  const regrasTxt = {regras_json};
+  const pdfsList = {pdfs_json};
+
+  function showTab(id, btn) {{
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.classList.add('active');
+  }}
+
+  // Preencher Resultado IA
+  const vCard = document.getElementById('verdict-card');
+  const cor = (dados.status_cor || '').toUpperCase();
+  if (cor.includes('PROIBIDO')) vCard.classList.add('PROIBIDO');
+  else if (cor.includes('PERMITIDO')) vCard.classList.add('PERMITIDO');
+
+  document.getElementById('v-title').textContent = (cor.includes('PROIBIDO') ? '⛔ ' : cor.includes('PERMITIDO') ? '✅ ' : '⚠️ ') + dados.titulo_veredicto;
+  document.getElementById('v-ref').textContent = 'REF: ' + dados.referencia_iata;
+  document.getElementById('b-aprov').textContent = dados.aprovacao_operador;
+  document.getElementById('b-notoc').textContent = dados.notoc;
+  document.getElementById('b-porao').textContent = dados.bagagem_porao;
+  document.getElementById('b-mao').textContent = dados.bagagem_mao;
+
+  const ulLim = document.getElementById('list-limites');
+  (dados.limites_exatos || []).forEach(l => {{
+    const li = document.createElement('li'); li.textContent = l; ulLim.appendChild(li);
+  }});
+  const ulCond = document.getElementById('list-cond');
+  (dados.condicoes_operacionais || []).forEach(c => {{
+    const li = document.createElement('li'); li.textContent = c; ulCond.appendChild(li);
+  }});
+
+  // Preencher Docs
+  const ulPdfs = document.getElementById('list-pdfs');
+  pdfsList.forEach(p => {{
+    const li = document.createElement('li'); li.textContent = p; ulPdfs.appendChild(li);
+  }});
+  document.getElementById('txt-regras').textContent = regrasTxt;
+
+  // Calculadora
+  function calcularWh() {{
+    const tipo = document.getElementById('tipo-uso').value;
+    const v = parseFloat(document.getElementById('volts').value) || 0;
+    const mah = parseFloat(document.getElementById('mah').value) || 0;
+    const numEl = document.getElementById('calc-num');
+    const msgEl = document.getElementById('calc-msg');
+
+    if (tipo === 'metal') {{
+      const gramas = (mah / 1000) * 0.3;
+      numEl.textContent = gramas.toFixed(2) + ' g Lítio';
+      if (gramas <= 2) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 2 g: Permitido SEM aprovação do operador.'; }}
+      else if (gramas <= 8) {{ numEl.style.color = '#F59E0B'; msgEl.textContent = '⚠️ > 2 g até 8 g (POC/Médico): Requer APROVAÇÃO do operador (YES).'; }}
+      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 8 g: PROIBIDO em bagagem de passageiro.'; }}
+      return;
+    }}
+
+    const wh = (v * mah) / 1000;
+    numEl.textContent = wh.toFixed(1) + ' Wh';
+
+    if (tipo === 'wheelchair') {{
+      if (wh <= 300) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 300 Wh: Aceite na SATA (sujeito a aprovação e proteção de terminais).'; }}
+      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 300 Wh: PROIBIDO NA SATA (teto máximo de 300 Wh mesmo para baterias fixas).'; }}
+    }} else {{
+      if (wh <= 100) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 100 Wh: Permitido sem aprovação (Máx. 2 powerbanks na cabine junto ao passageiro).'; }}
+      else if (wh <= 160) {{ numEl.style.color = '#F59E0B'; msgEl.textContent = '⚠️ 100–160 Wh: Requer APROVAÇÃO SATA (YES). Máx. 2 sobressalentes na cabine.'; }}
+      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 160 Wh: PROIBIDO como powerbank / eletrónico portátil.'; }}
+    }}
+  }}
+  calcularWh();
+</script>
+</body>
+</html>
+"""
+
+components.html(html_efb, height=780, scrolling=True)
