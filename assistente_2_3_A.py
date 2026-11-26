@@ -1,8 +1,10 @@
 import os
+import io
 import glob
 import json
 import base64
 import pdfplumber
+from PIL import Image
 import streamlit as st
 import streamlit.components.v1 as components
 from openai import OpenAI
@@ -34,6 +36,13 @@ st.markdown("""
         border: none !important;
         width: 100% !important;
         overscroll-behavior-y: contain !important;
+    }
+    /* Compactar uploader de foto para aspeto mobile limpo */
+    [data-testid="stFileUploader"] section {
+        padding: 8px 12px !important;
+        background-color: #0F172A !important;
+        border: 1px dashed #334155 !important;
+        border-radius: 12px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -104,6 +113,15 @@ def carregar_audio_base64():
         return f"data:audio/{ext};base64,{b64}", os.path.basename(audios[0])
     return "", ""
 
+def processar_imagem_para_base64(uploaded_file):
+    img = Image.open(uploaded_file)
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    img.thumbnail((1280, 1280))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
 texto_referencia, lista_pdfs = carregar_todos_pdfs(BASE_DIR)
 regras_sata_base = carregar_regras_sata()
 audio_data_uri, audio_nome = carregar_audio_base64()
@@ -119,21 +137,21 @@ if "ultima_resposta" not in st.session_state:
         "bagagem_mao": "VERIFICAR",
         "notoc": "VERIFICAR",
         "limites_exatos": [
-            "Descreve o artigo do passageiro acima para validar limites exatos, patamares e distinção porão/cabine."
+            "Escreve a dúvida ou tira foto à etiqueta/artigo acima para validar limites exatos e regras SATA."
         ],
         "condicoes_operacionais": [
-            f"Base ativa: {len(lista_pdfs)} documento(s) da Secção 2 + Variações SATA (SP/S4)."
+            f"Base ativa: {len(lista_pdfs)} documento(s) da Secção 2 + Variações SATA (SP/S4) + Visão IA."
         ]
     }
 
-# --- BARRA DE PESQUISA NATIVA LIGADA AO BACKEND OPENAI ---
+# --- CABEÇALHO E ENTRADA (TEXTO + CÂMARA) ---
 with st.container():
     st.markdown("""
     <div style="background: linear-gradient(135deg, #091526 0%, #003366 65%, #006B3C 100%); padding: 14px 16px; border-bottom: 1px solid #1E293B; color: white; font-family: sans-serif;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
                 <div style="font-weight:700; font-size:1.05rem;">✈️ SATA DGR Ops <span style="font-size:0.7rem; background:#00A859; padding:2px 6px; border-radius:6px;">EFB v2.67</span></div>
-                <div style="font-size:0.75rem; color:#94A3B8;">IATA 67ª Ed. (2026) • Prioridade SATA Ativa</div>
+                <div style="font-size:0.75rem; color:#94A3B8;">IATA 67ª Ed. (2026) • Texto + Câmara IA</div>
             </div>
             <div style="font-size:0.72rem; color:#10B981; font-weight:600;">● ONLINE</div>
         </div>
@@ -149,14 +167,25 @@ with st.container():
 
     pergunta = st.text_input(
         "Consulta DGR:",
-        placeholder="Ex: powerbank 101wh, baterias 50wh, POC lítio metálico, cadeira rodas 350Wh...",
+        placeholder="Escreve o artigo ou tira foto abaixo (ex: Pode ir no porão?)...",
         label_visibility="collapsed"
     )
+
+    foto_artigo = st.file_uploader(
+        "📷 Tirar foto ou anexar etiqueta/artigo",
+        type=["jpg", "jpeg", "png", "webp"],
+        label_visibility="collapsed"
+    )
+
+    if foto_artigo is not None:
+        st.image(foto_artigo, caption="Imagem pronta para análise DGR", width=220)
 
     if st.button("🔍 Validar Transporte (IATA + SATA)", type="primary", use_container_width=True):
         if not texto_referencia.strip():
             st.error("Nenhum PDF carregado no GitHub.")
-        elif pergunta.strip():
+        elif not pergunta.strip() and foto_artigo is None:
+            st.warning("Escreve o artigo ou tira uma foto primeiro.")
+        else:
             client = OpenAI(api_key=OPENAI_API_KEY)
             bloco_sata = f"""
             HIERARQUIA OBRIGATÓRIA:
@@ -168,31 +197,32 @@ with st.container():
 
             prompt_json = f"""
             És um Instrutor Certificado de IATA DGR (67ª Edição) na SATA.
-            Analisa a pergunta com base em TODOS os documentos da Secção 2 e nas Regras Específicas da SATA fornecidos abaixo.
+            Analisa a pergunta e/ou a IMAGEM fornecida com base em TODOS os documentos da Secção 2 e nas Regras Específicas da SATA.
+
+            REGRAS DE ANÁLISE VISUAL (QUANDO HOUVER IMAGEM):
+            - Lê atentamente todas as especificações técnicas visíveis na etiqueta ou produto: Volts (V), mAh, Watt-hora (Wh), gramas de lítio, símbolos de inflamabilidade/gás comprimido/corrosivo, códigos UN, marca/tipo de equipamento (ex.: powerbank, bateria de ferramenta, spray, desumidificador, cadeira de rodas).
+            - Se na etiqueta estiverem apenas Volts (V) e mAh (sem Wh), calcula automaticamente Wh = (V * mAh) / 1000 e indica o cálculo exato na resposta.
 
             REGRAS CRÍTICAS DE RIGOR REGULAMENTAR (NUNCA VIOLAR):
             1. CLASSIFICAÇÃO DE POWERBANKS:
-               - Um POWERBANK é SEMPRE considerado regulamentarmente uma bateria sobressalente (spare battery) e NUNCA uma bateria instalada num equipamento (PED).
-               - Quando a pergunta for especificamente sobre um POWERBANK (ex.: "powerbank 101wh"), NÃO apresentes cenários de bateria instalada (PED) nem de sobressalentes normais; responde EXCLUSIVAMENTE sobre powerbanks: proibidos no porão, na SATA têm teto máximo de 100 Wh (logo >100 Wh é PROIBIDO na SATA), máx. 2 unidades na cabine e recomendação de transporte junto ao passageiro.
-            2. PERGUNTAS GENÉRICAS SOBRE BATERIAS (ex.: "baterias 50wh", sem dizer se é PED, sobressalente ou powerbank):
-               - Apenas nestes casos genéricos, discrimina separadamente os 3 cenários aplicáveis:
-                 * Instalada no equipamento (PED): Porão e cabine (até 100 Wh sem aprovação; 100–160 Wh com aprovação; máx. 15 PEDs).
-                 * Bateria Solta / Sobressalente normal (câmara, drone, portátil): Proibida no porão (NO), só cabine (até 100 Wh: máx. 20 unidades sem aprovação; 100–160 Wh: máx. 2 unidades com aprovação).
-                 * Powerbank (Regra SATA): Proibido no porão (NO), só cabine até 100 Wh (>100 Wh PROIBIDO na SATA), máx. 2 unidades junto ao passageiro.
+               - Um POWERBANK é SEMPRE considerado uma bateria sobressalente (spare battery) e NUNCA uma bateria instalada num equipamento (PED).
+               - Quando o artigo for um POWERBANK, responde EXCLUSIVAMENTE sobre powerbanks: proibidos no porão, na SATA têm teto máximo de 100 Wh (>100 Wh é PROIBIDO na SATA), máx. 2 unidades na cabine e recomendação de transporte junto ao passageiro.
+            2. PERGUNTAS GENÉRICAS SOBRE BATERIAS (sem especificar PED, sobressalente ou powerbank):
+               - Apenas nestes casos genéricos, discrimina separadamente: Instalada (PED), Bateria Solta/Sobressalente normal (até 100 Wh: máx. 20 unidades; 100–160 Wh: máx. 2 com aprovação), e Powerbank SATA (até 100 Wh: máx. 2 unidades; >100 Wh proibido).
             3. ESCALÕES E PATAMARES DE APROVAÇÃO: Discrimina sempre todos os patamares existentes (ex.: Lítio Metálico <= 2 g SEM aprovação vs > 2 g até 8 g COM aprovação).
             4. REGRAS SATA: Teto máximo de 300 Wh mesmo em baterias fixas de cadeiras de rodas, máx. 2 powerbanks até 100 Wh (>100 Wh proibidos) na cabine junto ao passageiro, NOTOC YES obrigatório para munições.
 
             Devolve EXCLUSIVAMENTE um JSON válido com estas chaves:
             {{
               "status_cor": "PROIBIDO" ou "CONDICIONADO" ou "PERMITIDO",
-              "titulo_veredicto": "Frase curta e direta do veredicto",
+              "titulo_veredicto": "Frase curta e direta do veredicto (identificando o artigo da foto se houver imagem)",
               "referencia_iata": "Subsecção/Tabela exata (ex: Tabela 2.3.A / 2.3.5.8)",
               "aprovacao_operador": "YES / NO ou N/A (se proibido) ou resumo dos escalões",
               "bagagem_porao": "YES ou NO",
               "bagagem_mao": "YES ou NO ou ON PERSON",
               "notoc": "YES ou NO",
               "limites_exatos": [
-                "Lista apenas os limites e patamares relevantes para o artigo perguntado"
+                "Valores lidos na etiqueta/imagem (se aplicável) e limites/patamares regulamentares"
               ],
               "condicoes_operacionais": [
                 "Condições práticas, motivos de proibição ou requisitos SATA aplicáveis"
@@ -204,7 +234,24 @@ with st.container():
             {texto_referencia}
             """
 
-            with st.spinner("A consultar Secção 2 + Variações SATA..."):
+            texto_utilizador = pergunta.strip() if pergunta.strip() else "Identifica este artigo/etiqueta na imagem e indica se pode ser transportado na SATA (porão e/ou cabine) e em que condições."
+
+            if foto_artigo is not None:
+                img_b64 = processar_imagem_para_base64(foto_artigo)
+                user_content = [
+                    {"type": "text", "text": texto_utilizador},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{img_b64}",
+                            "detail": "high"
+                        }
+                    }
+                ]
+            else:
+                user_content = texto_utilizador
+
+            with st.spinner("A analisar imagem e regulamentação IATA + SATA..."):
                 try:
                     response = client.chat.completions.create(
                         model="gpt-4o",
@@ -212,7 +259,7 @@ with st.container():
                         response_format={"type": "json_object"},
                         messages=[
                             {"role": "system", "content": prompt_json},
-                            {"role": "user", "content": pergunta}
+                            {"role": "user", "content": user_content}
                         ]
                     )
                     st.session_state["ultima_resposta"] = json.loads(response.choices[0].message.content)
