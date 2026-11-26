@@ -15,9 +15,14 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Remover margens e elementos padrão do Streamlit para aspeto 100% App Nativa
+# Remover margens, elementos padrão do Streamlit e bloquear Pull-to-Refresh no Android
 st.markdown("""
 <style>
+    html, body, .stApp, [data-testid="stAppViewContainer"] {
+        overscroll-behavior-y: contain !important;
+        touch-action: pan-x pan-y !important;
+        background-color: #060D1A !important;
+    }
     header[data-testid="stHeader"] {display: none !important;}
     footer {display: none !important;}
     .block-container {
@@ -28,9 +33,7 @@ st.markdown("""
     iframe {
         border: none !important;
         width: 100% !important;
-    }
-    body, .stApp {
-        background-color: #060D1A !important;
+        overscroll-behavior-y: contain !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -116,7 +119,7 @@ if "ultima_resposta" not in st.session_state:
         "bagagem_mao": "VERIFICAR",
         "notoc": "VERIFICAR",
         "limites_exatos": [
-            "Seleciona um atalho abaixo ou descreve o artigo do passageiro para validar limites exatos e patamares."
+            "Descreve o artigo do passageiro acima para validar limites exatos, patamares e distinção porão/cabine."
         ],
         "condicoes_operacionais": [
             f"Base ativa: {len(lista_pdfs)} documento(s) da Secção 2 + Variações SATA (SP/S4)."
@@ -146,7 +149,7 @@ with st.container():
 
     pergunta = st.text_input(
         "Consulta DGR:",
-        placeholder="Ex: POC lítio metálico, cadeira rodas 350Wh, 2 powerbanks...",
+        placeholder="Ex: baterias 50wh, POC lítio metálico, cadeira rodas 350Wh...",
         label_visibility="collapsed"
     )
 
@@ -167,22 +170,28 @@ with st.container():
             És um Instrutor Certificado de IATA DGR (67ª Edição) na SATA.
             Analisa a pergunta com base em TODOS os documentos da Secção 2 e nas Regras Específicas da SATA fornecidos abaixo.
 
-            REGRAS CRÍTICAS DE RIGOR REGULAMENTAR:
-            1. ESCALÕES E PATAMARES DE APROVAÇÃO: Discrimina sempre TODOS os patamares distintos (ex.: Lítio Metálico <= 2 g SEM aprovação vs > 2 g até 8 g COM aprovação; ou Iões de Lítio <= 100 Wh SEM aprovação vs > 100 Wh até 160 Wh COM aprovação).
-            2. Preenche "aprovacao_operador" com o resumo exato dos escalões quando aplicável (ex.: "NO (<=2g) | YES (>2g-8g)").
-            3. Indica sempre limites numéricos exatos (Wh, g, mL, L, kg, máx. unidades) e regras SATA (ex.: teto 300 Wh mesmo em baterias fixas de cadeiras de rodas, máx. 2 powerbanks junto ao passageiro, NOTOC YES para munições).
+            REGRAS CRÍTICAS DE RIGOR REGULAMENTAR (NUNCA VIOLAR):
+            1. DISTINÇÃO OBRIGATÓRIA: INSTALADA NO EQUIPAMENTO (PED) VS. SOLTA / SOBRESSALENTE / POWERBANK:
+               - Sempre que o utilizador perguntar sobre baterias sem especificar se estão instaladas num equipamento ou soltas/sobressalentes (ex.: "baterias 50wh" ou "baterias de lítio"), É OBRIGATÓRIO apresentar AMBOS os cenários separadamente!
+               - No cartão "bagagem_porao", se a bateria instalada puder ir no porão (YES) mas a bateria solta/sobressalente for proibida no porão (NO), escreve exatamente: "YES (PED) | NO (Solta)".
+               - No cartão "bagagem_mao", escreve: "YES (PED & Solta)".
+               - Nos "limites_exatos" e "condicoes_operacionais", separa explicitamente:
+                 * CENÁRIO A — Instalada no equipamento (PED): limites (ex.: até 100 Wh sem aprovação; 100–160 Wh com aprovação; máx. 15 PEDs) e condições para porão (desligado, protegido contra ativação acidental).
+                 * CENÁRIO B — Solta / Sobressalente / Powerbank: PROIBIDA no porão (NO), permitida apenas na cabine, proteção individual contra curto-circuito, e na SATA limitada a no MÁXIMO 2 unidades por passageiro transportadas junto ao passageiro (evitar rack superior).
+            2. ESCALÕES E PATAMARES DE APROVAÇÃO: Discrimina sempre TODOS os patamares distintos (ex.: Lítio Metálico <= 2 g SEM aprovação vs > 2 g até 8 g COM aprovação; ou Iões de Lítio <= 100 Wh SEM aprovação vs > 100 Wh até 160 Wh COM aprovação). Preenche "aprovacao_operador" com o resumo dos escalões (ex.: "NO (<=100Wh) | YES (100-160Wh)").
+            3. REGRAS SATA: Teto máximo de 300 Wh mesmo em baterias fixas de cadeiras de rodas, máx. 2 powerbanks/sobressalentes na cabine junto ao passageiro, NOTOC YES obrigatório para munições.
 
             Devolve EXCLUSIVAMENTE um JSON válido com estas chaves:
             {{
               "status_cor": "PROIBIDO" ou "CONDICIONADO" ou "PERMITIDO",
-              "titulo_veredicto": "Frase curta e direta do veredicto",
-              "referencia_iata": "Subsecção/Tabela exata (ex: Tabela 2.3.A / 2.3.3.2)",
+              "titulo_veredicto": "Frase curta e direta do veredicto (destacando a diferença PED vs Solta se aplicável)",
+              "referencia_iata": "Subsecção/Tabela exata (ex: Tabela 2.3.A / 2.3.5.8)",
               "aprovacao_operador": "YES / NO ou resumo dos escalões",
-              "bagagem_porao": "YES ou NO",
-              "bagagem_mao": "YES ou NO ou ON PERSON",
+              "bagagem_porao": "YES / NO ou YES (PED) | NO (Solta)",
+              "bagagem_mao": "YES / NO / ON PERSON",
               "notoc": "YES ou NO",
-              "limites_exatos": ["Patamar 1...", "Patamar 2...", "Máximo unidades..."],
-              "condicoes_operacionais": ["Condições práticas e variações SATA..."]
+              "limites_exatos": ["CENÁRIO A (Instalada PED): ...", "CENÁRIO B (Solta / Powerbank): ...", "Patamares e quantidades..."],
+              "condicoes_operacionais": ["Condições práticas porão vs cabine e variações SATA..."]
             }}
 
             {bloco_sata}
@@ -205,7 +214,7 @@ with st.container():
                 except Exception as e:
                     st.error(f"Erro na API: {e}")
 
-# --- RENDERIZAÇÃO DO PAINEL EFB INTERATIVO (CARTÕES + CALCULADORA + GUIA) ---
+# --- RENDERIZAÇÃO DO PAINEL EFB INTERATIVO ---
 resp_json = json.dumps(st.session_state["ultima_resposta"], ensure_ascii=False)
 regras_json = json.dumps(regras_sata_base, ensure_ascii=False)
 pdfs_json = json.dumps(lista_pdfs, ensure_ascii=False)
@@ -218,7 +227,7 @@ html_efb = f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
-  body {{ background: #060D1A; color: #F8FAFC; padding: 12px 14px 80px 14px; }}
+  html, body {{ overscroll-behavior-y: contain; touch-action: pan-x pan-y; background: #060D1A; color: #F8FAFC; padding: 12px 14px 80px 14px; }}
   .tabs {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: #0F172A; padding: 5px; border-radius: 12px; border: 1px solid #1E293B; margin-bottom: 14px; }}
   .tab-btn {{ background: transparent; border: none; color: #94A3B8; padding: 8px 4px; border-radius: 8px; font-size: 0.74rem; font-weight: 600; cursor: pointer; }}
   .tab-btn.active {{ background: #005580; color: #FFFFFF; }}
@@ -227,184 +236,4 @@ html_efb = f"""
 
   .card {{ background: #0F172A; border: 1px solid #1E293B; border-radius: 14px; padding: 14px; margin-bottom: 12px; }}
   .verdict {{ border-left: 5px solid #F59E0B; background: rgba(245, 158, 11, 0.1); }}
-  .verdict.PROIBIDO {{ border-left-color: #EF4444; background: rgba(239, 68, 68, 0.12); }}
-  .verdict.PERMITIDO {{ border-left-color: #10B981; background: rgba(16, 185, 129, 0.12); }}
-  .v-title {{ font-size: 0.98rem; font-weight: 700; margin-bottom: 4px; }}
-  .v-ref {{ font-size: 0.76rem; color: #94A3B8; font-family: monospace; }}
-
-  .grid2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }}
-  .box {{ background: #0F172A; border: 1px solid #1E293B; border-radius: 12px; padding: 10px; text-align: center; }}
-  .box-lbl {{ font-size: 0.68rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }}
-  .box-val {{ font-size: 0.88rem; font-weight: 700; color: #38BDF8; font-family: monospace; }}
-
-  h4 {{ font-size: 0.82rem; color: #94A3B8; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.4px; }}
-  ul {{ padding-left: 16px; font-size: 0.85rem; line-height: 1.45; color: #E2E8F0; }}
-  li {{ margin-bottom: 6px; }}
-
-  /* Calculadora */
-  label {{ display: block; font-size: 0.78rem; color: #94A3B8; margin-bottom: 4px; margin-top: 8px; }}
-  input, select {{ width: 100%; background: #060D1A; border: 1px solid #334155; color: white; padding: 10px; border-radius: 10px; font-size: 0.95rem; }}
-  .calc-res {{ margin-top: 12px; padding: 14px; border-radius: 12px; background: #1E293B; text-align: center; }}
-  .calc-num {{ font-size: 1.6rem; font-weight: 800; color: #10B981; font-family: monospace; }}
-  pre {{ white-space: pre-wrap; font-size: 0.8rem; color: #CBD5E1; line-height: 1.45; }}
-</style>
-</head>
-<body>
-
-<div class="tabs">
-  <button class="tab-btn active" onclick="showTab('ia', this)">🤖 Resultado IA</button>
-  <button class="tab-btn" onclick="showTab('calc', this)">🔋 Calc. Wh/g</button>
-  <button class="tab-btn" onclick="showTab('guia', this)">🚦 Guia SATA</button>
-  <button class="tab-btn" onclick="showTab('docs', this)">📋 Regras</button>
-</div>
-
-<div id="tab-ia" class="section active">
-  <div id="verdict-card" class="card verdict">
-    <div id="v-title" class="v-title"></div>
-    <div id="v-ref" class="v-ref"></div>
-  </div>
-  <div class="grid2">
-    <div class="box"><div class="box-lbl">Aprovação Operador</div><div id="b-aprov" class="box-val"></div></div>
-    <div class="box"><div class="box-lbl">Informar Cmdt (NOTOC)</div><div id="b-notoc" class="box-val"></div></div>
-    <div class="box"><div class="box-lbl">Bagagem de Porão</div><div id="b-porao" class="box-val"></div></div>
-    <div class="box"><div class="box-lbl">Bagagem de Mão</div><div id="b-mao" class="box-val"></div></div>
-  </div>
-  <div class="card">
-    <h4>📏 Limites & Patamares Exatos</h4>
-    <ul id="list-limites"></ul>
-  </div>
-  <div class="card">
-    <h4>📝 Condições Operacionais & SATA</h4>
-    <ul id="list-cond"></ul>
-  </div>
-</div>
-
-<div id="tab-calc" class="section">
-  <div class="card">
-    <h4>⚡ Calculadora Rápida de Baterias (IATA + SATA)</h4>
-    <label>Tipo de Aplicação:</label>
-    <select id="tipo-uso" onchange="calcularWh()">
-      <option value="ped">Eletrónico Portátil / Powerbank (Iões Lítio)</option>
-      <option value="wheelchair">Cadeira de Rodas Elétrica (Teto SATA 300 Wh Fixa)</option>
-      <option value="metal">Lítio Metálico (mAh → Gramas de Lítio)</option>
-    </select>
-    <label>Tensão Nominal (Volts - V):</label>
-    <input type="number" id="volts" value="14.8" step="0.1" oninput="calcularWh()">
-    <label>Capacidade (mAh):</label>
-    <input type="number" id="mah" value="10000" step="100" oninput="calcularWh()">
-    <div class="calc-res">
-      <div id="calc-num" class="calc-num">148.0 Wh</div>
-      <div id="calc-msg" style="font-size:0.82rem; margin-top:6px; color:#FBBF24;"></div>
-    </div>
-  </div>
-</div>
-
-<div id="tab-guia" class="section">
-  <div class="card" style="border-left:4px solid #EF4444;">
-    <h4>⛔ Proibidos na SATA (Porão & Cabine)</h4>
-    <ul>
-      <li>Trotinetes elétricas, hoverboards, segways, bicicletas elétricas.</li>
-      <li>Cadeiras de rodas com bateria fixa superior a <strong>300 Wh</strong>.</li>
-      <li>Desumidificadores, tinteiros e toners de impressão.</li>
-      <li>Latas de tinta e sprays técnicos/inflamáveis.</li>
-      <li>Camping gas, botijas gás inflamável (Div. 2.1) e recipientes combustível (cheios ou vazios).</li>
-    </ul>
-  </div>
-  <div class="card" style="border-left:4px solid #F59E0B;">
-    <h4>⚠️ Regras Específicas SATA</h4>
-    <ul>
-      <li><strong>Powerbanks:</strong> Máx. <strong>2 unidades</strong> na cabine; recomendação SATA: transportar <strong>junto ao passageiro</strong> (evitar rack superior).</li>
-      <li><strong>Munições (1.4S):</strong> Máx. 5 kg porão + <strong>NOTOC obrigatório (YES)</strong>.</li>
-      <li><strong>Cartuchos CO2 (Div. 2.2):</strong> Permitidos dentro dos limites IATA (não inflamáveis).</li>
-    </ul>
-  </div>
-</div>
-
-<div id="tab-docs" class="section">
-  <div class="card">
-    <h4>📚 Manuais Carregados</h4>
-    <ul id="list-pdfs"></ul>
-  </div>
-  <div class="card">
-    <h4>📋 Regras SATA Ativas (regras_sata.txt)</h4>
-    <pre id="txt-regras"></pre>
-  </div>
-</div>
-
-<script>
-  const dados = {resp_json};
-  const regrasTxt = {regras_json};
-  const pdfsList = {pdfs_json};
-
-  function showTab(id, btn) {{
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + id).classList.add('active');
-    btn.classList.add('active');
-  }}
-
-  // Preencher Resultado IA
-  const vCard = document.getElementById('verdict-card');
-  const cor = (dados.status_cor || '').toUpperCase();
-  if (cor.includes('PROIBIDO')) vCard.classList.add('PROIBIDO');
-  else if (cor.includes('PERMITIDO')) vCard.classList.add('PERMITIDO');
-
-  document.getElementById('v-title').textContent = (cor.includes('PROIBIDO') ? '⛔ ' : cor.includes('PERMITIDO') ? '✅ ' : '⚠️ ') + dados.titulo_veredicto;
-  document.getElementById('v-ref').textContent = 'REF: ' + dados.referencia_iata;
-  document.getElementById('b-aprov').textContent = dados.aprovacao_operador;
-  document.getElementById('b-notoc').textContent = dados.notoc;
-  document.getElementById('b-porao').textContent = dados.bagagem_porao;
-  document.getElementById('b-mao').textContent = dados.bagagem_mao;
-
-  const ulLim = document.getElementById('list-limites');
-  (dados.limites_exatos || []).forEach(l => {{
-    const li = document.createElement('li'); li.textContent = l; ulLim.appendChild(li);
-  }});
-  const ulCond = document.getElementById('list-cond');
-  (dados.condicoes_operacionais || []).forEach(c => {{
-    const li = document.createElement('li'); li.textContent = c; ulCond.appendChild(li);
-  }});
-
-  // Preencher Docs
-  const ulPdfs = document.getElementById('list-pdfs');
-  pdfsList.forEach(p => {{
-    const li = document.createElement('li'); li.textContent = p; ulPdfs.appendChild(li);
-  }});
-  document.getElementById('txt-regras').textContent = regrasTxt;
-
-  // Calculadora
-  function calcularWh() {{
-    const tipo = document.getElementById('tipo-uso').value;
-    const v = parseFloat(document.getElementById('volts').value) || 0;
-    const mah = parseFloat(document.getElementById('mah').value) || 0;
-    const numEl = document.getElementById('calc-num');
-    const msgEl = document.getElementById('calc-msg');
-
-    if (tipo === 'metal') {{
-      const gramas = (mah / 1000) * 0.3;
-      numEl.textContent = gramas.toFixed(2) + ' g Lítio';
-      if (gramas <= 2) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 2 g: Permitido SEM aprovação do operador.'; }}
-      else if (gramas <= 8) {{ numEl.style.color = '#F59E0B'; msgEl.textContent = '⚠️ > 2 g até 8 g (POC/Médico): Requer APROVAÇÃO do operador (YES).'; }}
-      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 8 g: PROIBIDO em bagagem de passageiro.'; }}
-      return;
-    }}
-
-    const wh = (v * mah) / 1000;
-    numEl.textContent = wh.toFixed(1) + ' Wh';
-
-    if (tipo === 'wheelchair') {{
-      if (wh <= 300) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 300 Wh: Aceite na SATA (sujeito a aprovação e proteção de terminais).'; }}
-      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 300 Wh: PROIBIDO NA SATA (teto máximo de 300 Wh mesmo para baterias fixas).'; }}
-    }} else {{
-      if (wh <= 100) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 100 Wh: Permitido sem aprovação (Máx. 2 powerbanks na cabine junto ao passageiro).'; }}
-      else if (wh <= 160) {{ numEl.style.color = '#F59E0B'; msgEl.textContent = '⚠️ 100–160 Wh: Requer APROVAÇÃO SATA (YES). Máx. 2 sobressalentes na cabine.'; }}
-      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 160 Wh: PROIBIDO como powerbank / eletrónico portátil.'; }}
-    }}
-  }}
-  calcularWh();
-</script>
-</body>
-</html>
-"""
-
-components.html(html_efb, height=780, scrolling=True)
+  .verdict.PROIBIDO {{ border-left-color: #
