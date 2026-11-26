@@ -149,7 +149,7 @@ with st.container():
 
     pergunta = st.text_input(
         "Consulta DGR:",
-        placeholder="Ex: baterias 50wh, POC lítio metálico, cadeira rodas 350Wh...",
+        placeholder="Ex: powerbank 120wh, baterias 50wh, POC lítio metálico, cadeira rodas 350Wh...",
         label_visibility="collapsed"
     )
 
@@ -171,27 +171,30 @@ with st.container():
             Analisa a pergunta com base em TODOS os documentos da Secção 2 e nas Regras Específicas da SATA fornecidos abaixo.
 
             REGRAS CRÍTICAS DE RIGOR REGULAMENTAR (NUNCA VIOLAR):
-            1. DISTINÇÃO OBRIGATÓRIA: INSTALADA NO EQUIPAMENTO (PED) VS. SOLTA / SOBRESSALENTE / POWERBANK:
-               - Sempre que o utilizador perguntar sobre baterias sem especificar se estão instaladas num equipamento ou soltas/sobressalentes (ex.: "baterias 50wh" ou "baterias de lítio"), É OBRIGATÓRIO apresentar AMBOS os cenários separadamente!
-               - No cartão "bagagem_porao", se a bateria instalada puder ir no porão (YES) mas a bateria solta/sobressalente for proibida no porão (NO), escreve exatamente: "YES (PED) | NO (Solta)".
-               - No cartão "bagagem_mao", escreve: "YES (PED & Solta)".
-               - Nos "limites_exatos" e "condicoes_operacionais", separa explicitamente:
-                 * CENÁRIO A — Instalada no equipamento (PED): limites (ex.: até 100 Wh sem aprovação; 100–160 Wh com aprovação; máx. 15 PEDs) e condições para porão (desligado, protegido contra ativação acidental).
-                 * CENÁRIO B — Solta / Sobressalente / Powerbank: PROIBIDA no porão (NO), permitida apenas na cabine, proteção individual contra curto-circuito, e na SATA limitada a no MÁXIMO 2 unidades por passageiro transportadas junto ao passageiro (evitar rack superior).
+            1. DISTINÇÃO OBRIGATÓRIA ENTRE 3 CENÁRIOS DE BATERIAS (quando aplicável):
+               - Sempre que o utilizador perguntar sobre baterias sem especificar (ex.: "baterias 50wh"), separa obrigatoriamente:
+                 * CENÁRIO A — Instalada no equipamento (PED): Permitida no porão e cabine (até 100 Wh sem aprovação; 100–160 Wh com aprovação; máx. 15 PEDs).
+                 * CENÁRIO B — Bateria Solta / Sobressalente normal (câmara, drone, portátil, etc.): PROIBIDA no porão (NO), permitida apenas na cabine. Até 100 Wh o limite máximo é de **20 baterias sobressalentes por passageiro** (sem aprovação); de 100 a 160 Wh o máximo é de 2 baterias com aprovação do operador.
+                 * CENÁRIO C — Powerbanks (Regra específica SATA): PROIBIDOS no porão (NO), permitidos apenas na cabine até ao **teto máximo de 100 Wh** (**powerbanks acima de 100 Wh são PROIBIDOS na SATA**), limitados pela SATA a no **MÁXIMO 2 powerbanks por passageiro** (incluídos no teto das 20 sobressalentes IATA) e com recomendação SATA de irem **junto ao passageiro** (não no rack superior).
+               - NUNCA confundas o limite SATA de 2 powerbanks (e teto de 100 Wh para powerbanks) com as baterias sobressalentes comuns (que vão até 20 unidades ≤100 Wh, e 2 unidades de 100–160 Wh com aprovação).
             2. ESCALÕES E PATAMARES DE APROVAÇÃO: Discrimina sempre TODOS os patamares distintos (ex.: Lítio Metálico <= 2 g SEM aprovação vs > 2 g até 8 g COM aprovação; ou Iões de Lítio <= 100 Wh SEM aprovação vs > 100 Wh até 160 Wh COM aprovação). Preenche "aprovacao_operador" com o resumo dos escalões (ex.: "NO (<=100Wh) | YES (100-160Wh)").
-            3. REGRAS SATA: Teto máximo de 300 Wh mesmo em baterias fixas de cadeiras de rodas, máx. 2 powerbanks/sobressalentes na cabine junto ao passageiro, NOTOC YES obrigatório para munições.
+            3. REGRAS SATA: Teto máximo de 300 Wh mesmo em baterias fixas de cadeiras de rodas, máx. 2 powerbanks (até 100 Wh cada; >100 Wh proibidos) na cabine junto ao passageiro, NOTOC YES obrigatório para munições.
 
             Devolve EXCLUSIVAMENTE um JSON válido com estas chaves:
             {{
               "status_cor": "PROIBIDO" ou "CONDICIONADO" ou "PERMITIDO",
-              "titulo_veredicto": "Frase curta e direta do veredicto (destacando a diferença PED vs Solta se aplicável)",
+              "titulo_veredicto": "Frase curta e direta do veredicto",
               "referencia_iata": "Subsecção/Tabela exata (ex: Tabela 2.3.A / 2.3.5.8)",
               "aprovacao_operador": "YES / NO ou resumo dos escalões",
               "bagagem_porao": "YES / NO ou YES (PED) | NO (Solta)",
               "bagagem_mao": "YES / NO / ON PERSON",
               "notoc": "YES ou NO",
-              "limites_exatos": ["CENÁRIO A (Instalada PED): ...", "CENÁRIO B (Solta / Powerbank): ...", "Patamares e quantidades..."],
-              "condicoes_operacionais": ["Condições práticas porão vs cabine e variações SATA..."]
+              "limites_exatos": [
+                "CENÁRIO A (Instalada PED): ...",
+                "CENÁRIO B (Solta / Sobressalente normal): ...",
+                "CENÁRIO C (Powerbank - Regra SATA): ..."
+              ],
+              "condicoes_operacionais": ["Condições práticas porão vs cabine, proteção de terminais e recomendações SATA..."]
             }}
 
             {bloco_sata}
@@ -292,7 +295,8 @@ html_efb = f"""
     <h4>⚡ Calculadora Rápida de Baterias (IATA + SATA)</h4>
     <label>Tipo de Aplicação:</label>
     <select id="tipo-uso" onchange="calcularWh()">
-      <option value="ped">Eletrónico Portátil / Powerbank (Iões Lítio)</option>
+      <option value="ped">Eletrónico Portátil / Bateria Sobressalente (Iões Lítio)</option>
+      <option value="powerbank">Powerbank (Regra SATA: Máx. 100 Wh / Máx. 2 un.)</option>
       <option value="wheelchair">Cadeira de Rodas Elétrica (Teto SATA 300 Wh Fixa)</option>
       <option value="metal">Lítio Metálico (mAh → Gramas de Lítio)</option>
     </select>
@@ -302,7 +306,7 @@ html_efb = f"""
     <input type="number" id="mah" value="10000" step="100" oninput="calcularWh()">
     <div class="calc-res">
       <div id="calc-num" class="calc-num">148.0 Wh</div>
-      <div id="calc-msg" style="font-size:0.82rem; margin-top:6px; color:#FBBF24;"></div>
+      <div id="calc-msg" style="font-size:0.82rem; margin-top:6px; color:#FBBF24; line-height:1.4;"></div>
     </div>
   </div>
 </div>
@@ -311,6 +315,7 @@ html_efb = f"""
   <div class="card" style="border-left:4px solid #EF4444;">
     <h4>⛔ Proibidos na SATA (Porão & Cabine)</h4>
     <ul>
+      <li><strong>Powerbanks acima de 100 Wh:</strong> Proibidos na SATA.</li>
       <li>Trotinetes elétricas, hoverboards, segways, bicicletas elétricas.</li>
       <li>Cadeiras de rodas com bateria fixa superior a <strong>300 Wh</strong>.</li>
       <li>Desumidificadores, tinteiros e toners de impressão.</li>
@@ -321,7 +326,8 @@ html_efb = f"""
   <div class="card" style="border-left:4px solid #F59E0B;">
     <h4>⚠️ Regras Específicas SATA</h4>
     <ul>
-      <li><strong>Powerbanks / Sobressalentes:</strong> Proibidos no porão. Máx. <strong>2 unidades</strong> na cabine; recomendação SATA: transportar <strong>junto ao passageiro</strong> (evitar rack superior).</li>
+      <li><strong>Baterias Sobressalentes (≤ 100 Wh):</strong> Só cabine. Mantém limite IATA de <strong>máx. 20 unidades</strong> (100–160 Wh: máx. 2 com aprovação).</li>
+      <li><strong>Powerbanks (Restrição SATA):</strong> Só cabine, <strong>máx. 100 Wh</strong> e <strong>máx. 2 powerbanks</strong> por passageiro; levar <strong>junto ao passageiro</strong> (evitar rack superior).</li>
       <li><strong>Munições (1.4S):</strong> Máx. 5 kg porão + <strong>NOTOC obrigatório (YES)</strong>.</li>
       <li><strong>Cartuchos CO2 (Div. 2.2):</strong> Permitidos dentro dos limites IATA (não inflamáveis).</li>
     </ul>
@@ -388,8 +394,8 @@ html_efb = f"""
     if (tipo === 'metal') {{
       const gramas = (mah / 1000) * 0.3;
       numEl.textContent = gramas.toFixed(2) + ' g Lítio';
-      if (gramas <= 2) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 2 g: Permitido SEM aprovação (Solta: só cabine, máx. 2).'; }}
-      else if (gramas <= 8) {{ numEl.style.color = '#F59E0B'; msgEl.textContent = '⚠️ > 2 g até 8 g (POC/Médico): Requer APROVAÇÃO do operador (YES).'; }}
+      if (gramas <= 2) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 2 g: Permitido SEM aprovação (Solta: só cabine, máx. 20 sobressalentes).'; }}
+      else if (gramas <= 8) {{ numEl.style.color = '#F59E0B'; msgEl.textContent = '⚠️ > 2 g até 8 g (POC/Médico): Requer APROVAÇÃO do operador (YES), máx. 2 sobressalentes.'; }}
       else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 8 g: PROIBIDO em bagagem de passageiro.'; }}
       return;
     }}
@@ -400,10 +406,13 @@ html_efb = f"""
     if (tipo === 'wheelchair') {{
       if (wh <= 300) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 300 Wh: Aceite na SATA (sujeito a aprovação e proteção de terminais).'; }}
       else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 300 Wh: PROIBIDO NA SATA (teto máximo de 300 Wh mesmo para baterias fixas).'; }}
+    }} else if (tipo === 'powerbank') {{
+      if (wh <= 100) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 100 Wh: Permitido na SATA (SÓ CABINE, máx. 2 powerbanks junto ao passageiro, sem aprovação).'; }}
+      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 100 Wh: POWERBANK PROIBIDO NA SATA (não é permitida a faixa 100–160 Wh para powerbanks).'; }}
     }} else {{
-      if (wh <= 100) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 100 Wh: Instalada em PED (Porão/Cabine) | Solta/Powerbank: SÓ CABINE (máx. 2 junto ao passageiro).'; }}
-      else if (wh <= 160) {{ numEl.style.color = '#F59E0B'; msgEl.textContent = '⚠️ 100–160 Wh: Requer APROVAÇÃO SATA (YES). Solta/Powerbank: SÓ CABINE (máx. 2).'; }}
-      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 160 Wh: PROIBIDO como powerbank / eletrónico portátil.'; }}
+      if (wh <= 100) {{ numEl.style.color = '#10B981'; msgEl.textContent = '✅ ≤ 100 Wh (Sem aprovação): Instalada PED (Porão/Cabine) | Solta normal: SÓ CABINE (máx. 20 sobressalentes).'; }}
+      else if (wh <= 160) {{ numEl.style.color = '#F59E0B'; msgEl.textContent = '⚠️ 100–160 Wh: Requer APROVAÇÃO SATA (YES). Solta normal: SÓ CABINE (máx. 2 unidades).'; }}
+      else {{ numEl.style.color = '#EF4444'; msgEl.textContent = '⛔ > 160 Wh: PROIBIDO em bagagem de passageiro.'; }}
     }}
   }}
   calcularWh();
