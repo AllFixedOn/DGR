@@ -187,11 +187,15 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- LEITOR DE ÁUDIO OPCIONAL ---
+# --- CONTROLO RÁPIDO DE ÁUDIO (LIGAR / DESLIGAR) ---
 audios = sorted(glob.glob(os.path.join(BASE_DIR, "*.mp3")) + glob.glob(os.path.join(BASE_DIR, "*.wav")))
 if audios:
-    with st.expander("🎵 Áudio da App", expanded=False):
-        st.audio(audios[0])
+    col_som1, col_som2 = st.columns([2, 3])
+    with col_som1:
+        musica_ativa = st.toggle("🔊 Música", value=False)
+    with col_som2:
+        if musica_ativa:
+            st.audio(audios[0], autoplay=True)
 
 # --- NAVEGAÇÃO NATIVA POR SEPARADORES (SEM IFRAME PRESO) ---
 tab_ia, tab_calc, tab_guia, tab_docs = st.tabs(["🤖 Consulta IA", "🔋 Calc. Wh/g", "🚦 Guia SATA", "📋 Regras"])
