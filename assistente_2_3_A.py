@@ -165,4 +165,164 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- LEITOR OPCIONAL PARA ÁUDIO ---
-audio_files = sorted(glob.glob(os.path.join(BASE_DIR, "*.mp3")) + glob.glob(os.path.join
+audio_files = sorted(glob.glob(os.path.join(BASE_DIR, "*.mp3")) + glob.glob(os.path.join(BASE_DIR, "*.wav")))
+if audio_files:
+    with st.expander("🎵 Áudio da App (Splash / Background)", expanded=False):
+        for af in audio_files:
+            st.caption(os.path.basename(af))
+            st.audio(af)
+
+# --- NAVEGAÇÃO POR SEPARADORES ---
+tab_consulta, tab_rapido, tab_regras = st.tabs(["🔍 Consulta IA", "🚦 Guia Rápido", "📋 Regras SATA"])
+
+with tab_consulta:
+    aplicar_sata = st.toggle("Prioridade Regras SATA (SP / S4)", value=True)
+
+    if "query_input" not in st.session_state:
+        st.session_state["query_input"] = ""
+
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("🔋 Powerbanks (Máx. 2)", use_container_width=True):
+            st.session_state["query_input"] = "Quais os limites, quantidade e localização a bordo para powerbanks na SATA?"
+        if st.button("♿ Cadeira Rodas (300Wh)", use_container_width=True):
+            st.session_state["query_input"] = "Passageiro com cadeira de rodas elétrica com bateria de lítio fixa. Qual o limite na SATA?"
+    with c2:
+        if st.button("🧯 CO2 vs Camping Gas", use_container_width=True):
+            st.session_state["query_input"] = "Passageiro com cartuchos de CO2 para colete salva-vidas vs camping gas. Limites e regras?"
+        if st.button("🔫 Munições & NOTOC", use_container_width=True):
+            st.session_state["query_input"] = "Quais as regras, peso máximo e exigência de NOTOC para munições na SATA?"
+
+    pergunta = st.text_area(
+        "Artigo ou cenário do passageiro:",
+        value=st.session_state["query_input"],
+        placeholder="Ex: POC com bateria de lítio metálico ou 2 baterias de 120 Wh...",
+        height=95,
+        label_visibility="collapsed"
+    )
+
+    if st.button("Validar Transporte", type="primary", use_container_width=True):
+        if not texto_referencia.strip():
+            st.error("Nenhum PDF carregado no repositório.")
+        elif not pergunta.strip():
+            st.warning("Escreve o artigo ou dúvida primeiro.")
+        else:
+            client = OpenAI(api_key=OPENAI_API_KEY)
+
+            bloco_sata = f"""
+            HIERARQUIA OBRIGATÓRIA:
+            1º Lugar: REGRAS ESPECÍFICAS DA SATA (prevalecem sempre sobre a IATA).
+            2º Lugar: MANUAL IATA DGR SECÇÃO 2 (67ª Edição).
+            REGRAS SATA ATIVAS:
+            {regras_sata_base}
+            """ if aplicar_sata else "Aplica apenas a regra geral IATA DGR."
+
+            prompt_json = f"""
+            És um Instrutor Certificado de IATA DGR (67ª Edição) na SATA.
+            Analisa a pergunta com base em TODOS os documentos da Secção 2 e nas Regras Específicas da SATA fornecidos abaixo.
+
+            REGRAS CRÍTICAS DE RIGOR REGULAMENTAR (NUNCA VIOLAR):
+            1. ESCALÕES E PATAMARES DE APROVAÇÃO: Muitos artigos na Tabela 2.3.A e Subsecção 2.3 têm DOIS patamares distintos (ex.: Lítio Metálico <= 2 g SEM aprovação vs > 2 g até 8 g COM aprovação; ou Iões de Lítio <= 100 Wh SEM aprovação vs > 100 Wh até 160 Wh COM aprovação). É OBRIGATÓRIO discriminar TODOS os patamares existentes, indicando exatamente qual o intervalo que NÃO requer aprovação (NO) e qual o intervalo que REQUER aprovação do operador (YES).
+            2. QUANTIDADES MÁXIMAS: Indica sempre tanto a capacidade/peso por bateria (g ou Wh) como o número máximo de baterias sobressalentes permitidas por passageiro.
+            3. Se a aprovação do operador depender do patamar (ex.: NO até 2g, YES acima de 2g até 8g), preenche "aprovacao_operador" com o resumo exato dos dois patamares (ex.: "NO (<=2g) | YES (>2g-8g)").
+
+            Devolve EXCLUSIVAMENTE um objeto JSON válido com estas chaves exatas:
+            {{
+              "status_cor": "PROIBIDO" ou "CONDICIONADO" ou "PERMITIDO",
+              "titulo_veredicto": "Frase curta e direta do veredicto na SATA",
+              "referencia_iata": "Subsecção/Tabela exata (ex: Tabela 2.3.A / 2.3.3.2)",
+              "aprovacao_operador": "YES / NO ou resumo dos escalões (ex: NO <=2g | YES >2g-8g)",
+              "bagagem_porao": "YES ou NO (com nota se aplicável)",
+              "bagagem_mao": "YES ou NO ou ON PERSON",
+              "notoc": "YES ou NO",
+              "limites_exatos": [
+                "Patamar 1 (Sem aprovação): ...",
+                "Patamar 2 (Com aprovação do operador): ...",
+                "Quantidade máxima de sobressalentes: ..."
+              ],
+              "condicoes_operacionais": [
+                "Condições práticas de transporte, proteção contra curto-circuito e regras SATA"
+              ]
+            }}
+
+            {bloco_sata}
+
+            DOCUMENTAÇÃO IATA SECÇÃO 2:
+            {texto_referencia}
+            """
+
+            with st.spinner("A analisar regulamentação IATA + SATA..."):
+                try:
+                    response = client.chat.completions.create(
+                        model="gpt-4o",
+                        temperature=0.0,
+                        response_format={"type": "json_object"},
+                        messages=[
+                            {"role": "system", "content": prompt_json},
+                            {"role": "user", "content": pergunta}
+                        ]
+                    )
+                    dados = json.loads(response.choices[0].message.content)
+
+                    cor = dados.get("status_cor", "CONDICIONADO").upper()
+                    classe_css = "verdict-condicionado"
+                    icone = "⚠️"
+                    if "PROIBIDO" in cor:
+                        classe_css = "verdict-proibido"
+                        icone = "⛔"
+                    elif "PERMITIDO" in cor:
+                        classe_css = "verdict-permitido"
+                        icone = "✅"
+
+                    st.markdown(f"""
+                    <div class="verdict-card {classe_css}">
+                        <div style="font-size: 1.1rem;">{icone} {dados.get('titulo_veredicto', '')}</div>
+                        <div style="font-size: 0.82rem; margin-top: 4px; opacity: 0.85;">Ref: {dados.get('referencia_iata', '')}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown(f"""
+                    <div class="status-grid">
+                        <div class="status-box">
+                            <div class="status-label">Aprovação Operador</div>
+                            <div class="status-val">{dados.get('aprovacao_operador', '-')}</div>
+                        </div>
+                        <div class="status-box">
+                            <div class="status-label">Informar Cmdt (NOTOC)</div>
+                            <div class="status-val">{dados.get('notoc', '-')}</div>
+                        </div>
+                        <div class="status-box">
+                            <div class="status-label">Bagagem de Porão</div>
+                            <div class="status-val">{dados.get('bagagem_porao', '-')}</div>
+                        </div>
+                        <div class="status-box">
+                            <div class="status-label">Bagagem de Mão</div>
+                            <div class="status-val">{dados.get('bagagem_mao', '-')}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown("#### 📏 Limites Quantitativos Exatos")
+                    for lim in dados.get("limites_exatos", []):
+                        st.markdown(f"- **{lim}**")
+
+                    st.markdown("#### 📝 Condições Operacionais & SATA")
+                    for cond in dados.get("condicoes_operacionais", []):
+                        st.markdown(f"- {cond}")
+
+                except Exception as e:
+                    st.error(f"Erro ao processar resposta: {e}")
+
+with tab_rapido:
+    st.markdown("#### 🚦 Resumo Rápido de Balcão (SATA)")
+    st.error("⛔ **PROIBIDOS (Porão e Cabine):** Trotinetes/hoverboards/bicicletas elétricas, desumidificadores, tinteiros/toners, latas de tinta/sprays técnicos, camping gas/gás inflamável (Div. 2.1), cadeiras de rodas com bateria fixa **> 300 Wh**.")
+    st.warning("⚠️ **RESTRIÇÕES ESPECÍFICAS SATA:**\n- **Cadeiras de Rodas Elétricas:** Máx. **300 Wh** mesmo em baterias fixas.\n- **Powerbanks:** Máx. **2 unidades** por passageiro, só na cabine e **junto ao passageiro** (evitar rack superior).\n- **Munições (1.4S):** Máx. **5 kg** porão + **NOTOC obrigatório (YES)**.")
+    st.success("✅ **PERMITIDOS (DENTRO DOS LIMITES IATA):** Cartuchos de **CO2** (Div. 2.2 — não inflamáveis), artigos de higiene/medicinais (2.3.5.1), eletrónicos portáteis com baterias até 100 Wh.")
+
+with tab_regras:
+    st.markdown(f"#### 📚 Base Documental Ativa ({len(lista_pdfs)} PDFs)")
+    for pdf_nome in lista_pdfs:
+        st.caption(f"📄 {pdf_nome}")
+    st.divider()
+    st.markdown("#### 📋 Ficheiro `regras_sata.txt` em vigor")
+    st.text_area("Regras atuais:", value=regras_sata_base, height=350, disabled=True)
